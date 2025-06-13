@@ -1,0 +1,151 @@
+sources:
+  my-sqlite-db:
+    kind: "sqlite"
+    database: "bank_transactions.db"
+tools:
+  search-all-transactions:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Search for all transactions in a table.
+    statement: SELECT * FROM transactions;
+  search-all-transactions-by-account:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Search for all transactions in a table.
+    statement: SELECT * FROM transactions WHERE account_number = ?;
+    parameters:
+      - name: account_number
+        type: string
+        description: Client's account_number which can be retreived from table of clients.
+  search-all-clients:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Search for all transactions in a table.
+    statement: SELECT * FROM clients;
+  search-client-number:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Search for client's record given client's name.
+    statement: SELECT * FROM clients WHERE client_name LIKE ?;
+    parameters:
+      - name: client_name
+        type: string
+        description: Client's name or a Name with initials.
+  change-client-tariff:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Upgrade or downgrade client's plan based on his request.
+    statement: UPDATE clients SET tariff_type = ?, interest_rate = ?, daily_limit = ?, normal_fee = ? WHERE client_name LIKE ?;
+    parameters:
+      - name: tariff_type
+        type: string
+        description: Uppercased name of the plan, example - NORMAL.
+      - name: interest_rate
+        type: string
+        description: The percentage of the interest rate of the corresponding plan.
+      - name: daily_limit
+        type: string
+        description: The daily withdrawal limit of the corresponding plan.
+      - name: normal_fee
+        type: string
+        description: Card usage fee in dollars of the corresponding plan.
+      - name: client_name
+        type: string
+        description: Client's name or a Name with initials.
+  search-account-number-by-name:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Search for client's account number by client's name.
+    statement: SELECT account_number FROM clients WHERE client_name LIKE ?;
+    parameters:
+      - name: client_name
+        type: string
+        description: Client's name or a Name with initials
+  search-by-date-range:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: Use this tool to filter transactions by date range.
+    statement: | 
+      SELECT * FROM transactions 
+      WHERE transaction_date BETWEEN $1 AND $2
+      ORDER BY transaction_date DESC, transaction_time DESC;
+    parameters:
+      - name: begin_date
+        type: string
+        description: Begin date of the range in form of YYYY-MM-DD
+      - name: end_date
+        type: string
+        description: End date of the range in form of YYYY-MM-DD
+  repeat-cancelled-transaction:
+    kind: sqlite-sql
+    source: my-sqlite-db
+    description: | 
+      Use this tool repeat a previously cancelled or failed transaction. 
+      It may only involve transactions that would otherwise be valid. If a customer cancelled an invalid transaction, it should not be repeated again, until the conditions meet.
+      It should have all the same parameters as a previously cancelled transaction, except for new COMPLETED status, succinct description and a subsequent change of the current balance. 
+    statement: | 
+     INSERT INTO transactions (
+      account_number,
+      transaction_date,
+      transaction_time,
+      transaction_type,
+      amount,
+      balance_after,
+      description,
+      reference_number,
+      counterparty_account,
+      counterparty_name,
+      channel,
+      location,
+      status,
+      failure_reason
+      ) VALUES (?, CURRENT_DATE, CURRENT_TIME, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING transaction_id, created_at;
+    parameters:
+      - name: account_number
+        type: string
+        description: It is the account number of the client
+      - name: transaction_type
+        type: string
+        description: What kind of transaction we are going to repeat. It could only be a transfer operation.
+      - name: amount
+        type: string
+        description: The amount of the current balance BEFORE the transaction.
+      - name: balance_after
+        type: string
+        description: The balance AFTER the successfully repeated transaction. Should be None if it was an invalid transaction.
+      - name: description
+        type: string
+        description: Human-readable explanation of the nature of the transaction for subsequent examination.
+      - name: reference_number
+        type: string
+        description: Reference number of the client
+      - name: counterparty_account
+        type: string
+        description: The counterparty account number
+      - name: counterparty_name
+        type: string
+        description: Human-readable counterparty account name. May be optional.
+      - name: channel
+        type: string
+        description: Transaction medium - only Mobile or Online transactions can be repeated.
+      - name: location
+        type: string
+        description: Location of transaction - only applicable for Card, Withdrawal or ATM transactions.
+      - name: status
+        type: string
+        description: Attempted status of the transaction.
+      - name: failure_reason
+        type: string
+        description: Failure reason of an attempted transaction.
+toolsets:
+  my-toolset:
+    - search-all-transactions
+    - repeat-cancelled-transaction
+    - search-client-number
+    - search-all-clients
+    - search-client-number
+    - search-by-date-range
+    - change-client-tariff
+
+

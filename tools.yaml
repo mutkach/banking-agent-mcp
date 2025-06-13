@@ -1,0 +1,137 @@
+sources:
+  my-pg-source:
+    kind: postgres
+    host: 127.0.0.1
+    port: 5432
+    database: toolbox_db
+    user: toolbox_user
+    password: "claude-key"
+tools:
+  search-transactions-by-description:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search for transactions based on description.
+    parameters:
+      - name: description
+        type: string
+        description: The description of the transaction.
+    statement: SELECT * FROM transactions WHERE description ILIKE '%' || $1 || '%';
+  search-all-transactions:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search for all transactions in a table.
+    statement: SELECT * FROM transactions;
+  search-distinct-statuses:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Use this tool to find all distinct statuses.
+    statement: SELECT DISTINCT status FROM transactions ORDER BY status;
+  search-by-status:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Use this tool to filter transactions by status type.
+    statement: SELECT * FROM transactions WHERE status = $1;
+    parameters:
+      - name: status
+        type: string
+        description: Can be one of several kinds (enums).
+  search-distinct-transaction-types:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Use this tool to find all distinct transaction types (Withdrawal, Deposit, etc.).
+    statement: SELECT DISTINCT transaction_type FROM transactions ORDER BY transaction_type;
+  search-distinct-transaction-channels:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Use this tool to find all distinct transaction channels (Card, ATM, etc.).
+    statement: SELECT DISTINCT channel FROM transactions ORDER BY channel;
+  search-by-date-range:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Use this tool to filter transactions by date range.
+    statement: | 
+      SELECT * FROM transactions 
+      WHERE transaction_date BETWEEN $1 AND $2
+      ORDER BY transaction_date DESC, transaction_time DESC;
+    parameters:
+      - name: begin_date
+        type: string
+        description: Begin date of the range in form of YYYY-MM-DD
+      - name: end_date
+        type: string
+        description: End date of the range in form of YYYY-MM-DD
+  repeat-cancelled-transaction:
+    kind: postgres-sql
+    source: my-pg-source
+    description: | 
+      Use this tool repeat a previously cancelled or failed transaction. 
+      It may only involve transactions that would otherwise be valid. If a customer cancelled an invalid transaction, it should not be repeated again, until the conditions meet.
+      It should have all the same parameters as a previously cancelled transaction, except for new COMPLETED status, succinct description and a subsequent change of the current balance. 
+    statement: | 
+     INSERT INTO transactions (
+      account_number,
+      transaction_date,
+      transaction_time,
+      transaction_type,
+      amount,
+      balance_after,
+      description,
+      reference_number,
+      counterparty_account,
+      counterparty_name,
+      channel,
+      location,
+      status,
+      failure_reason
+      ) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING transaction_id, created_at;
+    parameters:
+      - name: account_number
+        type: string
+        description: It is the account number of the client
+      - name: transaction_type
+        type: string
+        description: What kind of transaction we are going to repeat. It could only be a transfer operation.
+      - name: amount
+        type: string
+        description: The amount of the current balance BEFORE the transaction.
+      - name: balance_after
+        type: string
+        description: The balance AFTER the successfully repeated transaction. Should be None if it was an invalid transaction.
+      - name: description
+        type: string
+        description: Human-readable explanation of the nature of the transaction for subsequent examination.
+      - name: reference_number
+        type: string
+        description: Reference number of the client
+      - name: counterparty_account
+        type: string
+        description: The counterparty account number
+      - name: counterparty_name
+        type: string
+        description: Human-readable counterparty account name. May be optional.
+      - name: channel
+        type: string
+        description: Transaction medium - only Mobile or Online transactions can be repeated.
+      - name: location
+        type: string
+        description: Location of transaction - only applicable for Card, Withdrawal or ATM transactions.
+      - name: status
+        type: string
+        description: Attempted status of the transaction.
+      - name: failure_reason
+        type: string
+        description: Failure reason of an attempted transaction.
+      
+      
+toolsets:
+  my-toolset:
+    - search-transactions-by-description
+    - search-all-transactions
+    - search-distinct-statuses
+    - search-by-status
+    - search-by-date-range
+    - search-distinct-transaction-types
+    - search-distinct-transaction-channels
+    - repeat-cancelled-transaction
+
