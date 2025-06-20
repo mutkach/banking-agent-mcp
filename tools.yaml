@@ -122,8 +122,6 @@ tools:
       - name: failure_reason
         type: string
         description: Failure reason of an attempted transaction.
-      
-      
 toolsets:
   my-toolset:
     - search-transactions-by-description

@@ -141,11 +141,11 @@ tools:
 toolsets:
   my-toolset:
     - search-all-transactions
-    - repeat-cancelled-transaction
-    - search-client-number
+    - repeat-failed-transaction
     - search-all-clients
     - search-client-number
+    - search-by-status
     - search-by-date-range
-    - change-client-tariff
+    - change-client-plan
 
 
